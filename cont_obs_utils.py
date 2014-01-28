@@ -3,7 +3,7 @@ import numpy as np
 import scipy.sparse as sps
 import scipy.sparse.linalg as spsla
 
-import lin_alg_utils as lau
+import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 from dolfin import dx, inner
 
@@ -192,7 +192,7 @@ def get_regularized_c(Ct=None, J=None, Mt=None):
     rCT = [I - J.T*S.-T*J*M.-T]*C.T
     """
 
-    raise UserWarning('deprecated - use more explicit approach to proj via ' +\
+    raise UserWarning('deprecated - use more explicit approach to proj via ' +
                       'sadpoints systems as implemented in linalg_utils')
 
     Nv, NY = Mt.shape[0], Ct.shape[1]

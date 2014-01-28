@@ -3,11 +3,11 @@ import dolfin
 import scipy.sparse.linalg as spsla
 import numpy as np
 
-import dolfin_navier_scipy.dolfin_to_nparrays as dts
-import dolfin_navier_scipy.cont_obs_utils as cou
-import lin_alg_utils as lau
+import dolfin_navier_scipy.dolfin_to_sparrays as dts
+import distr_control_fenics.cont_obs_utils as cou
+import sadptprj_riclyap_adi.lin_alg_utils as lau
 
-from optcont_main import drivcav_fems
+from dolfin_navier_scipy.problem_setups import drivcav_fems
 dolfin.parameters.linear_algebra_backend = "uBLAS"
 
 NV = 20

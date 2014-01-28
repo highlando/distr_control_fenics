@@ -2,7 +2,7 @@ import unittest
 import dolfin
 import scipy.sparse.linalg as spsla
 
-import cont_obs_utils as cou
+import distr_control_fenics.cont_obs_utils as cou
 
 
 import warnings

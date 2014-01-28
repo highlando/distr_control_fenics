@@ -4,7 +4,7 @@ import numpy as np
 import scipy.sparse.linalg as spsla
 
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
-import dolfin_navier_scipy.cont_obs_utils as cou
+import distr_control_fenics.cont_obs_utils as cou
 
 dolfin.parameters.linear_algebra_backend = "uBLAS"
 
