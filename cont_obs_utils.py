@@ -137,29 +137,8 @@ def get_mout_opa(odcoo=None, NY=8, V=None, NV=20):
             yxf = Ci * inner(vdof_y, yx) * dx
             yyf = Ci * inner(vdof_y, yy) * dx
 
-            # if kkk < 3:
-            # curvyx = inner(vdof_y, yx) * dx
-            # curvyy = inner(vdof_y, yy) * dx
-            # vdofonex = inner(vdof_y, vone_yx) * dx
-            # vdofoney = inner(vdof_y, vone_yy) * dx
-            # print 'DOF number {0}: {1}'.format(curdof,
-            #                                    [dolfin.assemble(curvyx),
-            #                                     dolfin.assemble(curvyy),
-            #                                     dolfin.assemble(vdofonex),
-            #                                     dolfin.assemble(vdofoney)])
-            # if kkk == 3:
-                # raise Warning('TODO: debug')
-
             Yx.append(dolfin.assemble(yxf))
-            # ,
-            #                      form_compiler_parameters={
-            #                          'quadrature_rule': 'canonical',
-            #                          'quadrature_degree': 2})
             Yy.append(dolfin.assemble(yyf))
-            # ,
-            #                      form_compiler_parameters={
-            #                          'quadrature_rule': 'default',
-            #                          'quadrature_degree': 2})
 
         Yx = np.array(Yx)
         Yy = np.array(Yy)

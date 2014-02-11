@@ -23,7 +23,7 @@ def check_output_opa(NY, femp=None):
 
     odcoo = femp['odcoo']
 
-    testcase = 2  # 1,2
+    testcase = 1  # 1,2
     # testvelocities
     if testcase == 1:
         """case 1 -- not div free"""
