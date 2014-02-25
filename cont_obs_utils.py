@@ -16,8 +16,8 @@ def get_inp_opa(cdcoo=None, NU=8, V=None, xcomp=0):
     the findim array representation
     of the input operator
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     cdcoo : dictionary with xmin, xmax, ymin, ymax of the control domain
     NU : dimension of the input space
     V : FEM space of the velocity
@@ -232,7 +232,9 @@ class L2abLinBas():
     """ return the hat function related to the num-th vertex
 
     from the interval [a=0, b=1] with an equispaced grid
-    of N vertices """
+    of N vertices
+
+    """
 
     def __init__(self, num, N, a=0.0, b=1.0):
         self.dist = (b - a) / (N - 1)
@@ -336,6 +338,54 @@ def get_ystarvec(ystar, odcoo, NY):
         ystarvec[k * NY:(k + 1) * NY, 0] = cyv.vector().array()
 
     return ystarvec
+
+
+def extract_output(strdict=None, tmesh=None, c_mat=None,
+                   ystarvec=None, load_data=None):
+    """extract the `y` by applying `C` to the data
+
+    returns lists of lists to be plotted pickled in json files
+
+    Parameters
+    ----------
+    strdict : dictionary
+        with time as the keys and path to data as values
+    tmesh : iterable list or ndarray
+        values of the time instances
+    c_mat : (K,N) sparse matrix
+        output operator
+    ystarvec : callable f(t), optional
+        returns a (K,) or (K,1) vector at time `t`
+    load_data : callable f(string)
+        returns the data as ndarray
+
+    Returns
+    -------
+    yscomplist : list
+        of the outputs at `tmesh`, where `yscomplist[0] = y(trange[0])`
+    ystarlist : list, optional
+        of ystarvec values as yscomplist
+
+    """
+
+    cur_v = load_data(strdict[tmesh[0]])
+    yn = c_mat*cur_v
+    yscomplist = [yn.flatten().tolist()]
+
+    for t in tmesh[1:]:
+        cur_v = load_data(strdict[t])
+        yn = c_mat*cur_v
+        yscomplist.append(yn.flatten().tolist())
+
+    if ystarvec is None:
+        return yscomplist
+
+    else:
+        ystarlist = [ystarvec(0).flatten().tolist()]
+        for t in tmesh[1:]:
+            ystarlist = [ystarvec(t).flatten().tolist()]
+
+    return yscomplist, ystarlist
 
 
 class CharactFun(dolfin.Expression):
