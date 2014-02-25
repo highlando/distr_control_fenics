@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.abspath('../'))
 import mock
 MOCK_MODULES = ['dolfin', 'numpy', 'scipy', 'scipy.linalg',
                 'scipy.sparse', 'scipy.sparse.linalg',
-                'sadptprj_riclyap_adi.lin_alg_utils'
+                'sadptprj_riclyap_adi', 'sadptprj_riclyap_adi.lin_alg_utils'
                 ]
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
