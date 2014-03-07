@@ -388,7 +388,7 @@ def extract_output(strdict=None, tmesh=None, c_mat=None,
     else:
         ystarlist = [ystarvec(0).flatten().tolist()]
         for t in tmesh[1:]:
-            ystarlist = [ystarvec(t).flatten().tolist()]
+            ystarlist.append(ystarvec(t).flatten().tolist())
 
     return yscomplist, ystarlist
 
