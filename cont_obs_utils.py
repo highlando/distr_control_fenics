@@ -406,3 +406,22 @@ class CharactFun(dolfin.Expression):
 
     # def value_shape(self):
     #     return (2,)
+
+
+def get_pavrg_onsubd(odcoo=None, Q=None, NP=20):
+    """assemble matrix that returns the pressure average over a subdomain
+
+    """
+
+    odom = ContDomain(odcoo)
+    q = dolfin.TrialFunction(Q)
+
+    # factor to compute the average via \bar u = 1/h \int_0^h u(x) dx
+    Ci = 1.0 / ((odcoo['xmax'] - odcoo['xmin']) *
+                (odcoo['ymax'] - odcoo['ymin']))
+
+    charfun = CharactFun(odom)
+
+    cp = dolfin.assemble(Ci * q * charfun * dx)
+
+    return cp.vector().array()[:-1]
