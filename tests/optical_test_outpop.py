@@ -13,17 +13,17 @@ dolfin.parameters.linear_algebra_backend = "uBLAS"
 def check_output_opa(NY, femp=None):
 
     if femp is None:
-        from dolfin_navier_scipy.problem_setups import cyl_fems
-        femp = cyl_fems(2)
-        # from dolfin_navier_scipy.problem_setups import drivcav_fems
-        # femp = drivcav_fems(20)
+        # from dolfin_navier_scipy.problem_setups import cyl_fems
+        # femp = cyl_fems(2)
+        from dolfin_navier_scipy.problem_setups import drivcav_fems
+        femp = drivcav_fems(20)
 
     V = femp['V']
     Q = femp['Q']
 
     odcoo = femp['odcoo']
 
-    testcase = 1  # 1,2
+    testcase = 2  # 1,2
     # testvelocities
     if testcase == 1:
         """case 1 -- not div free"""
@@ -101,4 +101,4 @@ def check_output_opa(NY, femp=None):
     dolfin.interactive(True)
 
 if __name__ == '__main__':
-    check_output_opa(NY=6)
+    check_output_opa(NY=4)

@@ -65,6 +65,11 @@ def test_qbdae_ass(problemname='cylinderwake', N=1, Re=4e2, nu=3e-2,
                           xmax=0.64,
                           ymin=0.18,
                           ymax=0.22)
+        elif problemname == 'drivencavity':
+            podcoo = dict(xmin=0.45,
+                          xmax=0.55,
+                          ymin=0.7,
+                          ymax=0.8)
         else:
             podcoo = femp['odcoo']
 
@@ -112,7 +117,7 @@ def test_qbdae_ass(problemname='cylinderwake', N=1, Re=4e2, nu=3e-2,
         #                               rhsv=crhsv,
         #                               rhsp=fp_stbc + fpc)
 
-        # vp_new[NV:] = pcmat.T  # *vp_new[NV:]
+        vp_new[NV:] = pcmat.T  # *vp_new[NV:]
         prvoutdict.update(dict(vp=vp_new, t=t))
         dou.output_paraview(**prvoutdict)
 
@@ -126,11 +131,12 @@ def test_qbdae_ass(problemname='cylinderwake', N=1, Re=4e2, nu=3e-2,
 
 
 if __name__ == '__main__':
-    test_qbdae_ass(problemname='cylinderwake', N=1, Re=1e2,
-                   # tE=8.0, Nts=3200)
+    # test_qbdae_ass(problemname='cylinderwake', N=1, Re=1e2,
+    test_qbdae_ass(problemname='drivencavity', N=20, Re=1e3,
+                   # tE=1.0, Nts=400)
                    # use_saved_mats='../../dolfin_navier_scipy/data/' +
                    # 'cylinderwakequadform__mats_N5812_Re100.mat',
-                   tE=8.0e-2, Nts=3200e-2)
+                   tE=12.0, Nts=2) #960)
     # test_qbdae_ass(problemname='cylinderwake', N=1, Re=1e2, tE=2.0, Nts=800,
     #                use_saved_mats='../data/' +
     #                'cylinderwakequadform__mats_N5812_Re100.0.mat')

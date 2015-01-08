@@ -12,10 +12,10 @@ dolfin.parameters.linear_algebra_backend = "uBLAS"
 def check_input_opa(NU, femp=None):
 
     if femp is None:
-        from dolfin_navier_scipy.problem_setups import cyl_fems
-        femp = cyl_fems(2)
-        # from dolfin_navier_scipy.problem_setups import drivcav_fems
-        # femp = drivcav_fems(20)
+        # from dolfin_navier_scipy.problem_setups import cyl_fems
+        # femp = cyl_fems(2)
+        from dolfin_navier_scipy.problem_setups import drivcav_fems
+        femp = drivcav_fems(20)
 
     V = femp['V']
     Q = femp['Q']
@@ -55,4 +55,4 @@ def check_input_opa(NU, femp=None):
     dolfin.interactive()
 
 if __name__ == '__main__':
-    check_input_opa(NU=5)
+    check_input_opa(NU=4)
