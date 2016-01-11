@@ -408,7 +408,7 @@ class CharactFun(dolfin.Expression):
     #     return (2,)
 
 
-def get_pavrg_onsubd(odcoo=None, Q=None):
+def get_pavrg_onsubd(odcoo=None, Q=None, ppin=None):
     """assemble matrix that returns the pressure average over a subdomain
 
     """
@@ -424,4 +424,7 @@ def get_pavrg_onsubd(odcoo=None, Q=None):
 
     cp = dolfin.assemble(Ci * q * charfun * dx)
 
-    return np.atleast_2d(cp.array()[:-1])
+    if ppin is None:
+        return np.atleast_2d(cp.array())
+    else:
+        raise UserWarning('Need to implement/specify the pinned pressure')
