@@ -7,7 +7,7 @@ import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 from dolfin import dx, inner
 
-dolfin.parameters.linear_algebra_backend = "uBLAS"
+dolfin.parameters.linear_algebra_backend = "Eigen"
 
 
 def get_inp_opa(cdcoo=None, NU=8, V=None, xcomp=0):
@@ -85,10 +85,15 @@ def get_mout_opa(odcoo=None, NY=8, V=None, NV=20):
     # factor to compute the average via \bar u = 1/h \int_0^h u(x) dx
     Ci = 1.0 / (odcoo['xmax'] - odcoo['xmin'])
 
-    omega_y = dolfin.RectangleMesh(odcoo['xmin'], odcoo['ymin'],
-                                   odcoo['xmax'], odcoo['ymax'],
-                                   NV/5, NY-1)
-
+    try:
+        omega_y = dolfin.RectangleMesh(odcoo['xmin'], odcoo['ymin'],
+                                       odcoo['xmax'], odcoo['ymax'],
+                                       NV/5, NY-1)
+    except TypeError:  # e.g. in newer dolfin versions
+        omega_y = dolfin.\
+            RectangleMesh(dolfin.Point(odcoo['xmin'], odcoo['ymin']),
+                          dolfin.Point(odcoo['xmax'], odcoo['ymax']),
+                          NV/5, NY-1)
     y_y = dolfin.VectorFunctionSpace(omega_y, 'CG', 1)
     # vone_yx = dolfin.interpolate(vonex, y_y)
     # vone_yy = dolfin.interpolate(voney, y_y)
@@ -103,9 +108,9 @@ def get_mout_opa(odcoo=None, NY=8, V=None, NV=20):
     u = dolfin.TrialFunction(V)
 
     MP = dolfin.assemble(inner(v, u) * charfun * dx)
-
-    rows, cols, values = MP.data()
-    MPa = sps.dia_matrix(sps.csr_matrix((values, cols, rows)))
+    MPa = dolfin.as_backend_type(MP).sparray()
+    # rows, cols, values = MP.data()
+    # MPa = sps.dia_matrix(sps.csr_matrix((values, cols, rows)))
 
     checkf = MPa.diagonal()
     dofs_on_subd = np.where(checkf > 0)[0]
@@ -261,8 +266,7 @@ class L2abLinBas():
         yu = dolfin.TrialFunction(Y)
         my = yv * yu * dx
         my = dolfin.assemble(my)
-        rows, cols, values = my.data()
-        return sps.csr_matrix((values, cols, rows))
+        return dolfin.as_backend_type(my).sparray()
 
 
 class Cast1Dto2D(dolfin.Expression):
