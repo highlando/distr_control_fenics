@@ -53,11 +53,11 @@ def check_input_opa(NU, femp=None):
     bu3.vector().set_local(Bu3)
     bu3.vector()[2] = 1  # for scaling and illustration purposes
 
-    plt.figure(1)
+    plt.figure(11)
     dolfin.plot(bu1, title='plot of Bu - extending in x')
-    plt.figure(2)
+    plt.figure(12)
     dolfin.plot(bu2, title='plot of Bu - extending in y')
-    plt.figure(3)
+    plt.figure(13)
     dolfin.plot(bu3, title='plot of Bu - extending in y')
     # dolfin.plot(V.mesh())
 

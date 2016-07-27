@@ -28,10 +28,10 @@ def check_output_opa(NY, femp=None):
     # testvelocities
     if testcase == 1:
         """case 1 -- not div free"""
-        exv = dolfin.Expression(('x[1]', 'x[1]'))
+        exv = dolfin.Expression(('x[1]', 'x[1]'), element=V.ufl_element())
     if testcase == 2:
         """case 2 -- disc div free"""
-        exv = dolfin.Expression(('1', '1'))
+        exv = dolfin.Expression(('1', '1'), element=V.ufl_element())
 
     testv = dolfin.interpolate(exv, V)
 

@@ -109,8 +109,6 @@ def get_mout_opa(odcoo=None, NY=8, V=None, NV=20):
 
     MP = dolfin.assemble(inner(v, u) * charfun * dx)
     MPa = dolfin.as_backend_type(MP).sparray()
-    # rows, cols, values = MP.data()
-    # MPa = sps.dia_matrix(sps.csr_matrix((values, cols, rows)))
 
     checkf = MPa.diagonal()
     dofs_on_subd = np.where(checkf > 0)[0]
@@ -269,7 +267,7 @@ class L2abLinBas():
         return dolfin.as_backend_type(my).sparray()
 
 
-class Cast1Dto2D(dolfin.Expression):
+def Cast1Dto2D(u, cdom, vcomp=None, xcomp=0, degree=2):
     """ casts a function u defined on [u.a, u.b]
 
     into the f[comp] of an expression
@@ -278,34 +276,37 @@ class Cast1Dto2D(dolfin.Expression):
     and simply extruding into the other direction
     """
 
-    def __init__(self, u, cdom, vcomp=None, xcomp=0):
-        # control 1D basis function
-        self.u = u
-        # domain of control
-        self.cdom = cdom
-        # component of the value to be set as u(s)
-        self.vcomp = vcomp
-        # component of x to be considered as s coordinate
-        self.xcomp = xcomp
-        # transformation of the intervals [cd.xmin, cd.xmax] -> [a, b]
-        # via s = m*x + d
-        self.m = (self.u.b - self.u.a) / \
-            (cdom.maxxy[self.xcomp] - cdom.minxy[self.xcomp])
-        self.d = self.u.b - self.m * cdom.maxxy[self.xcomp]
+    # control 1D basis function
+    u = u
+    # domain of control
+    cdom = cdom
+    # component of the value to be set as u(s)
+    vcomp = vcomp
+    # component of x to be considered as s coordinate
+    xcomp = xcomp
+    # transformation of the intervals [cd.xmin, cd.xmax] -> [a, b]
+    # via s = m*x + d
+    m = (u.b - u.a) / \
+        (cdom.maxxy[xcomp] - cdom.minxy[xcomp])
+    d = u.b - m * cdom.maxxy[xcomp]
 
-    def eval(self, value, x):
-        if self.cdom.inside(x, False):
-            if self.xcomp is None:
-                value[:] = self.u.evaluate(self.m * x[self.xcomp] + self.d)
+    class IDtoIIDExpr(dolfin.Expression):
+
+        def eval(self, value, x):
+            if cdom.inside(x, False):
+                if xcomp is None:
+                    value[:] = u.evaluate(m * x[xcomp] + d)
+                else:
+                    value[:] = 0
+                    value[vcomp] = u.evaluate(
+                        m * x[xcomp] + d)
             else:
                 value[:] = 0
-                value[self.vcomp] = self.u.evaluate(
-                    self.m * x[self.xcomp] + self.d)
-        else:
-            value[:] = 0
 
-    def value_shape(self):
-        return (2,)
+        def value_shape(self):
+            return (2,)
+
+    return IDtoIIDExpr(degree=degree)
 
 
 def get_rightinv(C):
@@ -397,19 +398,17 @@ def extract_output(strdict=None, tmesh=None, c_mat=None,
     return yscomplist, ystarlist
 
 
-class CharactFun(dolfin.Expression):
+def CharactFun(subdom, degree=2):
     """ characteristic function of subdomain """
-    def __init__(self, subdom):
-        self.subdom = subdom
+    class xifunexp(dolfin.Expression):
 
-    def eval(self, value, x):
-        if self.subdom.inside(x, False):
-            value[:] = 1
-        else:
-            value[:] = 0
+        def eval(self, value, x):
+            if subdom.inside(x, False):
+                value[:] = 1
+            else:
+                value[:] = 0
 
-    # def value_shape(self):
-    #     return (2,)
+    return xifunexp(degree=degree)
 
 
 def get_pavrg_onsubd(odcoo=None, Q=None, ppin=None):
