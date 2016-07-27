@@ -2,12 +2,13 @@
 import dolfin
 import scipy.sparse.linalg as spsla
 import numpy as np
+import matplotlib.pyplot as plt
 
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import sadptprj_riclyap_adi.lin_alg_utils as lau
 import distr_control_fenics.cont_obs_utils as cou
 
-dolfin.parameters.linear_algebra_backend = "uBLAS"
+dolfin.parameters.linear_algebra_backend = "Eigen"
 
 
 def check_output_opa(NY, femp=None):
@@ -62,7 +63,7 @@ def check_output_opa(NY, femp=None):
     y2 = dolfin.Function(Y)
     # y3 = dolfin.Function(Y)
 
-    dolfin.plot(V.mesh())
+    # dolfin.plot(V.mesh())
 
     ptmct = lau.app_prj_via_sadpnt(amat=stokesmats['M'],
                                    jmat=stokesmats['J'],
@@ -86,9 +87,11 @@ def check_output_opa(NY, femp=None):
 
     print "||C v_df - C_df v|| = {0}".format(np.linalg.norm(testyv0 - testry))
 
+    plt.figure(1)
     y1.vector().set_local(testy[:NY])
     dolfin.plot(y1, title="x-comp of C*v")
 
+    plt.figure(2)
     y2.vector().set_local(testy[NY:])
     dolfin.plot(y2, title="y-comp of C*v")
 
@@ -98,7 +101,7 @@ def check_output_opa(NY, femp=None):
     # y3.vector().set_local(testyg[:NY])
     # dolfin.plot(y3, title="x-comp of $C*(v - P_{df}v)$")
 
-    dolfin.interactive(True)
+    plt.show(block=False)
 
 if __name__ == '__main__':
     check_output_opa(NY=4)

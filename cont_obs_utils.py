@@ -28,7 +28,7 @@ def get_inp_opa(cdcoo=None, NU=8, V=None, xcomp=0):
     cdom = ContDomain(cdcoo)
 
     v = dolfin.TestFunction(V)
-    v_one = dolfin.Expression(('1', '1'))
+    v_one = dolfin.Expression(('1', '1'), element=V.ufl_element())
     v_one = dolfin.interpolate(v_one, V)
 
     BX, BY = [], []
@@ -77,8 +77,8 @@ def get_mout_opa(odcoo=None, NY=8, V=None, NV=20):
     odom = ContDomain(odcoo)
 
     v = dolfin.TestFunction(V)
-    voney = dolfin.Expression(('0', '1'))
-    vonex = dolfin.Expression(('1', '0'))
+    voney = dolfin.Expression(('0', '1'), element=V.ufl_element())
+    vonex = dolfin.Expression(('1', '0'), element=V.ufl_element())
     voney = dolfin.interpolate(voney, V)
     vonex = dolfin.interpolate(vonex, V)
 
