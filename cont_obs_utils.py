@@ -441,7 +441,7 @@ def get_pavrg_onsubd(odcoo=None, Q=None, ppin=None):
     # TODO: integrate over subdomain rather than using `charfun`
     cp = dolfin.assemble(Ci * p * q * charfun * dx)
     CP = dts.mat_dolfin2sparse(cp)
-    ccp = np.ones((1, Q.dim()))*CP
+    ccp = sps.csc_matrix(CP.sum(axis=0))
 
     if ppin is None:
         return ccp  # np.atleast_2d(cp.array())
