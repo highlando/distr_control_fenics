@@ -4,10 +4,21 @@ import scipy.sparse as sps
 import scipy.sparse.linalg as spsla
 
 import sadptprj_riclyap_adi.lin_alg_utils as lau
+import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
 from dolfin import dx, inner
 
 dolfin.parameters.linear_algebra_backend = "Eigen"
+
+__all__ = ['get_inp_opa',
+           'get_mout_opa',
+           'app_difffreeproj',
+           'get_regularized_c',
+           'Cast1Dto2D',
+           'get_rightinv',
+           'extract_output',
+           'CharactFun',
+           'get_pavrg_onsubd']
 
 
 def get_inp_opa(cdcoo=None, NU=8, V=None, xcomp=0):
@@ -418,6 +429,7 @@ def get_pavrg_onsubd(odcoo=None, Q=None, ppin=None):
 
     odom = ContDomain(odcoo)
     q = dolfin.TrialFunction(Q)
+    p = dolfin.TestFunction(Q)
 
     # factor to compute the average via \bar u = 1/h \int_0^h u(x) dx
     Ci = 1.0 / ((odcoo['xmax'] - odcoo['xmin']) *
@@ -425,9 +437,13 @@ def get_pavrg_onsubd(odcoo=None, Q=None, ppin=None):
 
     charfun = CharactFun(odom)
 
-    cp = dolfin.assemble(Ci * q * charfun * dx)
+    # TODO: no need to have `p` and then sum up all rows
+    # TODO: integrate over subdomain rather than using `charfun`
+    cp = dolfin.assemble(Ci * p * q * charfun * dx)
+    CP = dts.mat_dolfin2sparse(cp)
+    ccp = np.ones((1, Q.dim()))*CP
 
     if ppin is None:
-        return np.atleast_2d(cp.array())
+        return ccp  # np.atleast_2d(cp.array())
     else:
         raise UserWarning('Need to implement/specify the pinned pressure')
