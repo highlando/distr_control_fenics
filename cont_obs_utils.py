@@ -8,7 +8,7 @@ import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
 from dolfin import dx, inner
 
-dolfin.parameters.linear_algebra_backend = "Eigen"
+# dolfin.parameters.linear_algebra_backend = "Eigen"
 
 __all__ = ['get_inp_opa',
            'get_mout_opa',
