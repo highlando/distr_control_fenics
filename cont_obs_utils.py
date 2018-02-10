@@ -8,7 +8,7 @@ import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
 from dolfin import dx, inner
 
-# dolfin.parameters.linear_algebra_backend = "Eigen"
+dolfin.parameters.linear_algebra_backend = "Eigen"
 
 __all__ = ['get_inp_opa',
            'get_mout_opa',
@@ -95,16 +95,17 @@ def get_mout_opa(odcoo=None, NY=8, V=None, NV=20):
 
     # factor to compute the average via \bar u = 1/h \int_0^h u(x) dx
     Ci = 1.0 / (odcoo['xmax'] - odcoo['xmin'])
+    nvbyfive = np.int(np.round(NV/5))
 
     try:
         omega_y = dolfin.RectangleMesh(odcoo['xmin'], odcoo['ymin'],
                                        odcoo['xmax'], odcoo['ymax'],
-                                       NV/5, NY-1)
+                                       nvbyfive, NY-1)
     except TypeError:  # e.g. in newer dolfin versions
         omega_y = dolfin.\
             RectangleMesh(dolfin.Point(odcoo['xmin'], odcoo['ymin']),
                           dolfin.Point(odcoo['xmax'], odcoo['ymax']),
-                          NV/5, NY-1)
+                          nvbyfive, NY-1)
     y_y = dolfin.VectorFunctionSpace(omega_y, 'CG', 1)
     # vone_yx = dolfin.interpolate(vonex, y_y)
     # vone_yy = dolfin.interpolate(voney, y_y)
@@ -212,7 +213,7 @@ def get_regularized_c(Ct=None, J=None, Mt=None):
     try:
         rCt = np.load('data/regCNY{0}vdim{1}.npy'.format(NY, Nv))
     except IOError:
-        print 'no data/regCNY{0}vdim{1}.npy'.format(NY, Nv)
+        print('no data/regCNY{0}vdim{1}.npy'.format(NY, Nv))
         MTlu = spsla.factorized(Mt)
         auCt = np.zeros(Ct.shape)
         # M.-T*C.T
