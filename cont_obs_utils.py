@@ -8,7 +8,10 @@ import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
 from dolfin import dx, inner
 
-dolfin.parameters.linear_algebra_backend = "Eigen"
+try:
+    dolfin.parameters.linear_algebra_backend = "Eigen"
+except RuntimeError:
+    dolfin.parameters.linear_algebra_backend = "uBLAS"
 
 __all__ = ['get_inp_opa',
            'get_mout_opa',
