@@ -8,8 +8,6 @@ import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
 from dolfin import dx, inner
 
-dolfin.parameters.linear_algebra_backend = "Eigen"
-
 __all__ = ['get_inp_opa',
            'get_mout_opa',
            'app_difffreeproj',
@@ -52,8 +50,8 @@ def get_inp_opa(cdcoo=None, NU=8, V=None, xcomp=0):
         by = inner(v, buy) * dx
         Bx = dolfin.assemble(bx)
         By = dolfin.assemble(by)
-        Bx = Bx.array()
-        By = By.array()
+        Bx = Bx.get_local()
+        By = By.get_local()
         Bx = Bx.reshape(len(Bx), 1)
         By = By.reshape(len(By), 1)
         BX.append(sps.csc_matrix(By))
@@ -302,7 +300,7 @@ def Cast1Dto2D(u, cdom, vcomp=None, xcomp=0, degree=2):
         (cdom.maxxy[xcomp] - cdom.minxy[xcomp])
     d = u.b - m * cdom.maxxy[xcomp]
 
-    class IDtoIIDExpr(dolfin.Expression):
+    class IDtoIIDExpr(dolfin.UserExpression):
 
         def eval(self, value, x):
             if cdom.inside(x, False):
@@ -352,7 +350,7 @@ def get_ystarvec(ystar, odcoo, NY):
     ystarvec = np.zeros((NY * len(ystar), 1))
     for k, ysc in enumerate(ystar):
         cyv = dolfin.interpolate(ysc, Y)
-        ystarvec[k * NY:(k + 1) * NY, 0] = cyv.vector().array()
+        ystarvec[k * NY:(k + 1) * NY, 0] = cyv.vector().get_local()
 
     return ystarvec
 
@@ -412,13 +410,16 @@ def extract_output(strdict=None, tmesh=None, c_mat=None,
 
 def CharactFun(subdom, degree=2):
     """ characteristic function of subdomain """
-    class xifunexp(dolfin.Expression):
+    class xifunexp(dolfin.UserExpression):
 
         def eval(self, value, x):
             if subdom.inside(x, False):
                 value[:] = 1
             else:
                 value[:] = 0
+
+        def value_shape(self):
+            return (1,)
 
     return xifunexp(degree=degree)
 
