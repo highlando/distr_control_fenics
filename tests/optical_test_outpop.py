@@ -8,8 +8,6 @@ import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import sadptprj_riclyap_adi.lin_alg_utils as lau
 import distr_control_fenics.cont_obs_utils as cou
 
-dolfin.parameters.linear_algebra_backend = "Eigen"
-
 
 def check_output_opa(NY, femp=None):
 
@@ -76,8 +74,8 @@ def check_output_opa(NY, femp=None):
                                      jmat=stokesmats['J'],
                                      rhsv=testvi0)
 
-    print "||J*v|| = {0}".format(np.linalg.norm(stokesmats['J'] * testvi))
-    print "||J* v_df|| = {0}".format(np.linalg.norm(stokesmats['J'] * testvi0))
+    print("||J*v|| = {0}".format(np.linalg.norm(stokesmats['J']*testvi)))
+    print("||J* v_df|| = {0}".format(np.linalg.norm(stokesmats['J']*testvi0)))
 
     # # testsignals from the test velocities
     testy = spsla.spsolve(My, MyC * testvi)
@@ -85,7 +83,7 @@ def check_output_opa(NY, femp=None):
     # testyg = spsla.spsolve(My, MyC * (testvi.flatten() - testvi0))
     testry = spsla.spsolve(My, np.dot(ptmct.T, testvi))
 
-    print "||C v_df - C_df v|| = {0}".format(np.linalg.norm(testyv0 - testry))
+    print("||C v_df - C_df v|| = {0}".format(np.linalg.norm(testyv0 - testry)))
 
     plt.figure(1)
     y1.vector().set_local(testy[:NY])

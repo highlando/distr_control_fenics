@@ -7,8 +7,6 @@ import matplotlib.pyplot as plt
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import distr_control_fenics.cont_obs_utils as cou
 
-dolfin.parameters.linear_algebra_backend = "Eigen"
-
 
 def check_input_opa(NU, femp=None):
 
@@ -61,7 +59,7 @@ def check_input_opa(NU, femp=None):
     dolfin.plot(bu3, title='plot of Bu - extending in y')
     # dolfin.plot(V.mesh())
 
-    dolfin.interactive()
+    # dolfin.interactive()
     plt.show(block=False)
 
 if __name__ == '__main__':

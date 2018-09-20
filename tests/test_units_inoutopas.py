@@ -27,7 +27,7 @@ class TestInoutOpas(unittest.TestCase):
         mesh = dolfin.UnitSquareMesh(NV, NV)
         V = dolfin.VectorFunctionSpace(mesh, "CG", 2)
 
-        exv = dolfin.Expression(('1', '1'))
+        exv = dolfin.Expression(('1', '1'), element=V.ufl_element())
         testv = dolfin.interpolate(exv, V)
 
         odcoo = dict(xmin=0.45,

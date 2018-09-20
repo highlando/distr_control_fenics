@@ -70,55 +70,69 @@ def get_inp_opa(cdcoo=None, NU=8, V=None, xcomp=0):
                         sps.vstack([sps.csc_matrix((NU, NU)), Mu])]))
 
 
-def get_mout_opa(odcoo=None, NY=8, V=None, NV=20):
+def get_mout_opa(odcoo=None, NY=8, V=None,
+                 msrfncs='pc', mfgrid=(1, 1)):
     """dolfin.assemble the 'MyC' matrix
 
     the find an array representation
     of the output operator
 
-    the considered output is y(s) = 1/C int_x[1] v(s,x[1]) dx[1]
-    it is computed by testing computing my_i = 1/C int y_i v d(x)
-    where y_i depends only on x[1] and y_i is zero outside the domain
-    of observation. 1/C is the width of the domain of observation
-    cf. doku
+    the considered output is
+
+    .. math::
+        y(t) = M_y^{-1} \\int_{\\Omega_o} \\Psi v(t) dx
+
+    where :math:`\\Psi` is the formal vector of measurement functions
+    that have support on the domain of observation :math:`\\Omega_0`
+
+
+    Parameters
+    ----------
+    msrfncs : string, optional
+        type of the measurement functions, defaults to `'pc'` -- piecewise
+        constant (which measures averages over subdomains)
+    mfgrid : tuple, optional
+        grid for the definition of the `pc` measurments functions
+    odcoo : dictonary
+        with keys `'xmin'`, `'xmax'`, `'ymin'`, `'ymax'` -- the coordinates
+        of the domain of observation
     """
 
-    odom = ContDomain(odcoo)
+    # define the subdomains == sensor locations
+    xpartitions = mfgrid[1]
+    xmin, xspan = odcoo['xmin'], odcoo['xmax']-odcoo['xmin']
+    xspspan = xspan / xpartitions
 
-    v = dolfin.TestFunction(V)
+    ypartitions = mfgrid[0]
+    ymin, yspan = odcoo['ymin'], odcoo['ymax']-odcoo['ymin']
+    yspspan = yspan / ypartitions
+
+    spcoolist = []  # list of subdomain coordinates
+    for nxp in range(xpartitions):
+        spxmin = xmin + nxp*xspspan
+        spxmax = xmin + (nxp+1)*xspspan
+        for nyp in range(ypartitions):
+            spymin = ymin + nyp*yspspan
+            spymax = ymin + (nyp+1)*yspspan
+            spcoo = dict(xmin=spxmin, xmax=spxmax,
+                         ymin=spymin, ymax=spymax)
+            spcoolist.append(spcoo)
+
+    # filter functions that filter x, y components
     voney = dolfin.Expression(('0', '1'), element=V.ufl_element())
     vonex = dolfin.Expression(('1', '0'), element=V.ufl_element())
     voney = dolfin.interpolate(voney, V)
     vonex = dolfin.interpolate(vonex, V)
 
-    # factor to compute the average via \bar u = 1/h \int_0^h u(x) dx
-    Ci = 1.0 / (odcoo['xmax'] - odcoo['xmin'])
-    nvbyfive = np.int(np.round(NV/5))
-
-    try:
-        omega_y = dolfin.RectangleMesh(odcoo['xmin'], odcoo['ymin'],
-                                       odcoo['xmax'], odcoo['ymax'],
-                                       nvbyfive, NY-1)
-    except TypeError:  # e.g. in newer dolfin versions
-        omega_y = dolfin.\
-            RectangleMesh(dolfin.Point(odcoo['xmin'], odcoo['ymin']),
-                          dolfin.Point(odcoo['xmax'], odcoo['ymax']),
-                          nvbyfive, NY-1)
-    y_y = dolfin.VectorFunctionSpace(omega_y, 'CG', 1)
-    # vone_yx = dolfin.interpolate(vonex, y_y)
-    # vone_yy = dolfin.interpolate(voney, y_y)
-
-    # charfun = CharactFun(odom)
-    # v = dolfin.TestFunction(V)
-    # checkf = dolfin.assemble(inner(v, charfun) * dx)
-    # dofs_on_subd = np.where(checkf.array() > 0)[0]
-
-    charfun = CharactFun(odom)
-    v = dolfin.TestFunction(V)
     u = dolfin.TrialFunction(V)
+    cellmarkers = dolfin.MeshFunction('size_t', V.mesh(),
+                                      V.mesh().topology().dim())
 
-    MP = dolfin.assemble(inner(v, u) * charfun * dx)
-    MPa = dolfin.as_backend_type(MP).sparray()
+    cxll, cyll = [], []
+    for spcoo in spcoolist:
+        spodom = ContDomain(spcoo)
+        spodom.mark(cellmarkers, 22)  # just 0 didnt work
+        dx = dolfin.Measure('dx', subdomain_data=cellmarkers)
 
     checkf = MPa.diagonal()
     dofs_on_subd = np.where(checkf > 0)[0]
@@ -169,11 +183,6 @@ def get_mout_opa(odcoo=None, NY=8, V=None, NV=20):
     YYX = sps.hstack(YX)
     YYY = sps.hstack(YY)
     MyC = sps.vstack([YYX, YYY], format='csc')
-
-    # basfun = dolfin.Function(V)
-    # basfun.vector()[dofs_on_subd] = 0.2
-    # basfun.vector()[0] = 1  # for scaling the others only
-    # dolfin.plot(basfun)
 
     try:
         return (MyC, sps.block_diag([My, My], format='csc'))
@@ -236,9 +245,11 @@ class ContDomain(dolfin.SubDomain):
         self.maxxy = [ddict['xmax'], ddict['ymax']]
 
     def inside(self, x, on_boundary):
-        return (dolfin.between(x[0], (self.minxy[0], self.maxxy[0]))
+        insi = (dolfin.between(x[0], (self.minxy[0], self.maxxy[0]))
                 and
                 dolfin.between(x[1], (self.minxy[1], self.maxxy[1])))
+        print(x, insi)
+        return insi
 
 
 class L2abLinBas():
