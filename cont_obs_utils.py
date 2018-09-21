@@ -70,7 +70,7 @@ def get_inp_opa(cdcoo=None, NU=8, V=None, xcomp=0):
                         sps.vstack([sps.csc_matrix((NU, NU)), Mu])]))
 
 
-def get_mout_opa(odcoo=None, NY=8, V=None,
+def get_mout_opa(odcoo=None, NY=None, V=None,
                  msrfncs='pc', mfgrid=(1, 1)):
     """dolfin.assemble the 'MyC' matrix
 
@@ -85,6 +85,14 @@ def get_mout_opa(odcoo=None, NY=8, V=None,
     where :math:`\\Psi` is the formal vector of measurement functions
     that have support on the domain of observation :math:`\\Omega_0`
 
+    Arrangement of the `mfgrid(3,2)` vector array is matrix like
+
+    s11 s21
+    s12 s22
+    s13 s23   in physical space
+
+    and then output will be `[y(s11), y(s12), ..., y(s23)].T`
+
 
     Parameters
     ----------
@@ -98,13 +106,18 @@ def get_mout_opa(odcoo=None, NY=8, V=None,
         of the domain of observation
     """
 
+    if NY is not None:
+        raise NotImplementedError('by now only piecewise constant defined ' +
+                                  ' via mfgrid')
+    NV = V.dim()
+
     # define the subdomains == sensor locations
     xpartitions = mfgrid[1]
     xmin, xspan = odcoo['xmin'], odcoo['xmax']-odcoo['xmin']
     xspspan = xspan / xpartitions
 
     ypartitions = mfgrid[0]
-    ymin, yspan = odcoo['ymin'], odcoo['ymax']-odcoo['ymin']
+    ymax, yspan = odcoo['ymax'], odcoo['ymax']-odcoo['ymin']
     yspspan = yspan / ypartitions
 
     spcoolist = []  # list of subdomain coordinates
@@ -112,8 +125,8 @@ def get_mout_opa(odcoo=None, NY=8, V=None,
         spxmin = xmin + nxp*xspspan
         spxmax = xmin + (nxp+1)*xspspan
         for nyp in range(ypartitions):
-            spymin = ymin + nyp*yspspan
-            spymax = ymin + (nyp+1)*yspspan
+            spymax = ymax - nyp*yspspan
+            spymin = ymax - (nyp+1)*yspspan
             spcoo = dict(xmin=spxmin, xmax=spxmax,
                          ymin=spymin, ymax=spymax)
             spcoolist.append(spcoo)
@@ -129,68 +142,24 @@ def get_mout_opa(odcoo=None, NY=8, V=None,
                                       V.mesh().topology().dim())
 
     cxll, cyll = [], []
+    strtdx = 101
     for spcoo in spcoolist:
+        strtdx += 1
         spodom = ContDomain(spcoo)
-        spodom.mark(cellmarkers, 22)  # just 0 didnt work
+        spodom.mark(cellmarkers, strtdx)  # just 0 didnt work
         dx = dolfin.Measure('dx', subdomain_data=cellmarkers)
+        cxl = dolfin.assemble(inner(vonex, u) * dx(strtdx)).get_local()
+        cxll.append(sps.csr_matrix(cxl.reshape((1, NV))))
+        cyl = dolfin.assemble(inner(voney, u) * dx(strtdx)).get_local()
+        cyll.append(sps.csr_matrix(cyl.reshape((1, NV))))
 
-    checkf = MPa.diagonal()
-    dofs_on_subd = np.where(checkf > 0)[0]
+    mycx = sps.vstack(cxll)
+    mycy = sps.vstack(cyll)
+    MyC = sps.vstack([mycx, mycy])
 
-    # set up the numbers of zero columns to be inserted
-    # between the nonzeros, i.e. the columns corresponding
-    # to the dofs of V outside the observation domain
-    # e.g. if there are 7 dofs and dofs_on_subd = [1,4,5], then
-    # we compute the numbers [1,2,0,1] to assemble C = [0,*,0,0,*,*,0]
-    indist_subddofs = dofs_on_subd[1:] - (dofs_on_subd[:-1]+1)
-    indist_subddofs = np.r_[indist_subddofs, V.dim() - dofs_on_subd[-1] - 1]
+    My = (xspspan*yspspan)*sps.eye(2*xpartitions*ypartitions)  # the volumes
 
-    YX = [sps.csc_matrix((NY, dofs_on_subd[0]))]
-    YY = [sps.csc_matrix((NY, dofs_on_subd[0]))]
-    kkk = 0
-    for curdof, curzeros in zip(dofs_on_subd, indist_subddofs):
-        kkk += 1
-        vcur = dolfin.Function(V)
-        vcur.vector()[:] = 0
-        vcur.vector()[curdof] = 1
-        vdof_y = dolfin.interpolate(vcur, y_y)
-
-        Yx, Yy = [], []
-        for nbf in range(NY):
-            ybf = L2abLinBas(nbf, NY, a=odcoo['ymin'], b=odcoo['ymax'])
-            yx = Cast1Dto2D(ybf, odom, vcomp=0, xcomp=1)
-            yy = Cast1Dto2D(ybf, odom, vcomp=1, xcomp=1)
-
-            yxf = Ci * inner(vdof_y, yx) * dx
-            yyf = Ci * inner(vdof_y, yy) * dx
-
-            Yx.append(dolfin.assemble(yxf))
-            Yy.append(dolfin.assemble(yyf))
-
-        Yx = np.array(Yx)
-        Yy = np.array(Yy)
-        Yx = Yx.reshape(NY, 1)
-        Yy = Yy.reshape(NY, 1)
-        # append the columns to z
-        YX.append(sps.csc_matrix(Yx))
-        YY.append(sps.csc_matrix(Yy))
-        if curzeros > 0:
-            YX.append(sps.csc_matrix((NY, curzeros)))
-            YY.append(sps.csc_matrix((NY, curzeros)))
-
-    # print 'number of subdofs: {0}'.format(dofs_on_subd.shape[0])
-    My = ybf.massmat()
-    YYX = sps.hstack(YX)
-    YYY = sps.hstack(YY)
-    MyC = sps.vstack([YYX, YYY], format='csc')
-
-    try:
-        return (MyC, sps.block_diag([My, My], format='csc'))
-    except AttributeError:  # e.g. in scipy <= 0.9
-        return (
-            MyC,
-            sps.hstack([sps.vstack([My, sps.csc_matrix((NY, NY))]),
-                        sps.vstack([sps.csc_matrix((NY, NY)), My])]))
+    return MyC, My
 
 
 def app_difffreeproj(v=None, J=None, M=None):
@@ -248,7 +217,7 @@ class ContDomain(dolfin.SubDomain):
         insi = (dolfin.between(x[0], (self.minxy[0], self.maxxy[0]))
                 and
                 dolfin.between(x[1], (self.minxy[1], self.maxxy[1])))
-        print(x, insi)
+        # print(x, insi)
         return insi
 
 

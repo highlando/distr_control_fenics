@@ -8,30 +8,36 @@ import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import sadptprj_riclyap_adi.lin_alg_utils as lau
 import distr_control_fenics.cont_obs_utils as cou
 
+N = 35
 
-def check_output_opa(NY, femp=None):
 
+def check_output_opa(NYx=1, NYy=1, femp=None):
+
+    NY = NYx*NYy
     if femp is None:
         # from dolfin_navier_scipy.problem_setups import cyl_fems
         # femp = cyl_fems(2)
         from dolfin_navier_scipy.problem_setups import drivcav_fems
-        femp = drivcav_fems(20)
+        femp = drivcav_fems(N)
 
     V = femp['V']
     Q = femp['Q']
 
     odcoo = femp['odcoo']
 
-    testcase = 2  # 1,2
+    testcase = 1  # 1,2
     # testvelocities
     if testcase == 1:
         """case 1 -- not div free"""
         exv = dolfin.Expression(('x[1]', 'x[1]'), element=V.ufl_element())
+        exv = dolfin.Expression(('x[1]', 'x[1]*x[1]'), element=V.ufl_element())
     if testcase == 2:
         """case 2 -- disc div free"""
         exv = dolfin.Expression(('1', '1'), element=V.ufl_element())
 
     testv = dolfin.interpolate(exv, V)
+
+    import ipdb; ipdb.set_trace()
 
     odcoo = femp['odcoo']
 
@@ -50,26 +56,16 @@ def check_output_opa(NY, femp=None):
      bcvals) = dts.condense_sysmatsbybcs(stokesmats, [bc])
 
     # check the C
-    MyC, My = cou.get_mout_opa(odcoo=odcoo, V=V, NY=NY)
-    # MyC = MyC[:, invinds][:, :]
-
-    # signal space
-    ymesh = dolfin.IntervalMesh(NY - 1, odcoo['ymin'], odcoo['ymax'])
-    Y = dolfin.FunctionSpace(ymesh, 'CG', 1)
-
-    y1 = dolfin.Function(Y)
-    y2 = dolfin.Function(Y)
-    # y3 = dolfin.Function(Y)
-
-    # dolfin.plot(V.mesh())
+    MyC, My = cou.get_mout_opa(odcoo=odcoo, V=V, mfgrid=(NYx, NYy))
 
     ptmct = lau.app_prj_via_sadpnt(amat=stokesmats['M'],
                                    jmat=stokesmats['J'],
                                    rhsv=MyC.T,
                                    transposedprj=True)
 
-    testvi = testv.vector().array()
-    testvi0 = np.atleast_2d(testv.vector().array()).T
+    NV = V.dim()
+    testvi = testv.vector().get_local().reshape((NV, 1))
+    testvi0 = np.copy(testvi)
     testvi0 = lau.app_prj_via_sadpnt(amat=stokesmats['M'],
                                      jmat=stokesmats['J'],
                                      rhsv=testvi0)
@@ -80,26 +76,29 @@ def check_output_opa(NY, femp=None):
     # # testsignals from the test velocities
     testy = spsla.spsolve(My, MyC * testvi)
     testyv0 = spsla.spsolve(My, MyC * testvi0)
-    # testyg = spsla.spsolve(My, MyC * (testvi.flatten() - testvi0))
     testry = spsla.spsolve(My, np.dot(ptmct.T, testvi))
 
     print("||C v_df - C_df v|| = {0}".format(np.linalg.norm(testyv0 - testry)))
 
+    yx = testy[:NY]
+    yy = testy[NY:]
+
     plt.figure(1)
-    y1.vector().set_local(testy[:NY])
-    dolfin.plot(y1, title="x-comp of C*v")
+    plt.plot(yx)
 
     plt.figure(2)
-    y2.vector().set_local(testy[NY:])
-    dolfin.plot(y2, title="y-comp of C*v")
+    plt.plot(yy)
 
-    # y2.vector().set_local(testyv0[:NY])
-    # dolfin.plot(y2, title="x-comp of $C*(P_{df}v)$")
+    plt.figure(3)
+    dolfin.plot(testv, title='test velocity field')
 
-    # y3.vector().set_local(testyg[:NY])
-    # dolfin.plot(y3, title="x-comp of $C*(v - P_{df}v)$")
+    print('yx={0}'.format(yx))
+    print('yy={0}'.format(yy))
+
+    print('obsdom: [{0},{1}]x[{2},{3}]'.format(odcoo['xmin'], odcoo['xmax'],
+                                               odcoo['ymin'], odcoo['ymax']))
 
     plt.show(block=False)
 
 if __name__ == '__main__':
-    check_output_opa(NY=4)
+    check_output_opa(NYx=2, NYy=2)
