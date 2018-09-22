@@ -4,7 +4,6 @@ import scipy.sparse as sps
 import scipy.sparse.linalg as spsla
 
 import sadptprj_riclyap_adi.lin_alg_utils as lau
-import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
 from dolfin import dx, inner
 
@@ -407,23 +406,25 @@ def CharactFun(subdom, degree=2):
 def get_pavrg_onsubd(odcoo=None, Q=None, ppin=None):
     """assemble matrix that returns the pressure average over a subdomain
 
+    TODO: deprecate this -- use get_mout_opa instead
     """
 
-    odom = ContDomain(odcoo)
+    prsodom = ContDomain(odcoo)
     q = dolfin.TrialFunction(Q)
-    p = dolfin.TestFunction(Q)
+    # p = dolfin.TestFunction(Q)
 
     # factor to compute the average via \bar u = 1/h \int_0^h u(x) dx
     Ci = 1.0 / ((odcoo['xmax'] - odcoo['xmin']) *
                 (odcoo['ymax'] - odcoo['ymin']))
 
-    charfun = CharactFun(odom)
+    cellmarkers = dolfin.MeshFunction('size_t', Q.mesh(),
+                                      Q.mesh().topology().dim())
 
-    # TODO: no need to have `p` and then sum up all rows
-    # TODO: integrate over subdomain rather than using `charfun`
-    cp = dolfin.assemble(Ci * p * q * charfun * dx)
-    CP = dts.mat_dolfin2sparse(cp)
-    ccp = sps.csc_matrix(CP.sum(axis=0))
+    prsdx = 303
+    prsodom.mark(cellmarkers, prsdx)  # just 0 didnt work
+    dx = dolfin.Measure('dx', subdomain_data=cellmarkers)
+    cp = dolfin.assemble(Ci*q*dx(prsdx)).get_local().reshape((1, Q.dim()))
+    ccp = sps.csc_matrix(cp)
 
     if ppin is None:
         return ccp  # np.atleast_2d(cp.array())

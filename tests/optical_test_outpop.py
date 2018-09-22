@@ -8,7 +8,7 @@ import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import sadptprj_riclyap_adi.lin_alg_utils as lau
 import distr_control_fenics.cont_obs_utils as cou
 
-N = 35
+N = 40
 
 
 def check_output_opa(NYx=1, NYy=1, femp=None):
@@ -30,14 +30,13 @@ def check_output_opa(NYx=1, NYy=1, femp=None):
     if testcase == 1:
         """case 1 -- not div free"""
         exv = dolfin.Expression(('x[1]', 'x[1]'), element=V.ufl_element())
-        exv = dolfin.Expression(('x[1]', 'x[1]*x[1]'), element=V.ufl_element())
+        exv = dolfin.Expression(('x[0]*x[0]', 'x[0]*x[1]'),
+                                element=V.ufl_element())
     if testcase == 2:
         """case 2 -- disc div free"""
         exv = dolfin.Expression(('1', '1'), element=V.ufl_element())
 
     testv = dolfin.interpolate(exv, V)
-
-    import ipdb; ipdb.set_trace()
 
     odcoo = femp['odcoo']
 
@@ -56,7 +55,7 @@ def check_output_opa(NYx=1, NYy=1, femp=None):
      bcvals) = dts.condense_sysmatsbybcs(stokesmats, [bc])
 
     # check the C
-    MyC, My = cou.get_mout_opa(odcoo=odcoo, V=V, mfgrid=(NYx, NYy))
+    MyC, My = cou.get_mout_opa(odcoo=odcoo, V=V, mfgrid=(NYy, NYx))
 
     ptmct = lau.app_prj_via_sadpnt(amat=stokesmats['M'],
                                    jmat=stokesmats['J'],
@@ -101,4 +100,4 @@ def check_output_opa(NYx=1, NYy=1, femp=None):
     plt.show(block=False)
 
 if __name__ == '__main__':
-    check_output_opa(NYx=2, NYy=2)
+    check_output_opa(NYx=2, NYy=4)
