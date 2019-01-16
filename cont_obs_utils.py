@@ -361,19 +361,14 @@ def extract_output(strdict=None, tmesh=None, c_mat=None,
         of ystarvec values as yscomplist
 
     """
-    def _app_c(c_mat, v):
-        try:
-            return c_mat*v
-        except ValueError:
-            return np.dot(c_mat, v)
 
     cur_v = load_data(strdict[tmesh[0]])
-    yn = _app_c(c_mat, cur_v)
+    yn = c_mat.dot(cur_v)
     yscomplist = [yn.flatten().tolist()]
 
     for t in tmesh[1:]:
         cur_v = load_data(strdict[t])
-        yn = _app_c(c_mat, cur_v)
+        yn = c_mat.dot(cur_v)
         yscomplist.append(yn.flatten().tolist())
 
     if ystarvec is None:
