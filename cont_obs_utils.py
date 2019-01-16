@@ -54,8 +54,8 @@ def get_inp_opa(cdcoo=None, NU=8, V=None, xcomp=0):
         By = By.get_local()
         Bx = Bx.reshape(len(Bx), 1)
         By = By.reshape(len(By), 1)
-        BX.append(sps.csc_matrix(By))
-        BY.append(sps.csc_matrix(Bx))
+        BX.append(sps.csc_matrix(Bx))
+        BY.append(sps.csc_matrix(By))
 
     Mu = ubf.massmat()
 
