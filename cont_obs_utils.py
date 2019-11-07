@@ -335,7 +335,7 @@ def get_ystarvec(ystar, odcoo, NY):
 
 
 def extract_output(strdict=None, tmesh=None, c_mat=None,
-                   ystarvec=None, load_data=None):
+                   invinds=None, ystarvec=None, load_data=None):
     """extract the output `y` by applying `C` to the data
 
     returns lists of lists to be plotted pickled in json files
@@ -362,12 +362,19 @@ def extract_output(strdict=None, tmesh=None, c_mat=None,
 
     """
 
-    cur_v = load_data(strdict[tmesh[0]])
+    if invinds is not None:
+        def rdtin(vvec):
+            return vvec[invinds]
+    else:
+        def rdtin(vvec):
+            return vvec
+
+    cur_v = rdtin(load_data(strdict[tmesh[0]]))
     yn = c_mat.dot(cur_v)
     yscomplist = [yn.flatten().tolist()]
 
     for t in tmesh[1:]:
-        cur_v = load_data(strdict[t])
+        cur_v = rdtin(load_data(strdict[t]))
         yn = c_mat.dot(cur_v)
         yscomplist.append(yn.flatten().tolist())
 
