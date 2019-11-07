@@ -7,6 +7,7 @@ import sadptprj_riclyap_adi.lin_alg_utils as lau
 
 from dolfin import dx, inner
 
+dolfin.parameters.linear_algebra_backend = "Eigen"
 __all__ = ['get_inp_opa',
            'get_mout_opa',
            'app_difffreeproj',
