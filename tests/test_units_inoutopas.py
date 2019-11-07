@@ -1,6 +1,7 @@
 import unittest
 import dolfin
 import scipy.sparse.linalg as spsla
+import numpy as np
 
 import distr_control_fenics.cont_obs_utils as cou
 
@@ -19,43 +20,40 @@ class TestInoutOpas(unittest.TestCase):
     def test_outopa_workingconfig(self):
         """ The innerproducts that assemble the output operator
 
-        are accurately sampled for this parameter set (NV=25, NY=5)"""
+        are accurately sampled for this parameter set NV=40 and NYx=NYy=2
+        """
 
-        NV = 25
-        NY = 5
+        NV = 40
+        # NYx, NYy = 2, 2
+        NYx, NYy = 2, 2
+        NY = NYx*NYy
 
         mesh = dolfin.UnitSquareMesh(NV, NV)
         V = dolfin.VectorFunctionSpace(mesh, "CG", 2)
 
-        exv = dolfin.Expression(('1', '1'))
+        xmin, xmax, ymin, ymax = .45, .55, .6, .8
+        odcoo = dict(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
+        MyC, My = cou.get_mout_opa(odcoo=odcoo, V=V, mfgrid=(NYy, NYx))
+
+        exv = dolfin.Expression(('x[0]', 'x[0]*x[1]'),
+                                element=V.ufl_element())
         testv = dolfin.interpolate(exv, V)
 
-        odcoo = dict(xmin=0.45,
-                     xmax=0.55,
-                     ymin=0.6,
-                     ymax=0.8)
-
-        # check the C
-        MyC, My = cou.get_mout_opa(odcoo=odcoo, V=V, NY=NY, NV=NV)
-
-        # signal space
-        ymesh = dolfin.IntervalMesh(NY - 1, odcoo['ymin'], odcoo['ymax'])
-
-        Y = dolfin.FunctionSpace(ymesh, 'CG', 1)
-
-        y1 = dolfin.Function(Y)
-        y2 = dolfin.Function(Y)
-
-        testvi = testv.vector().array()
+        testvi = testv.vector().get_local()
         testy = spsla.spsolve(My, MyC * testvi)
 
-        y1 = dolfin.Expression('1')
-        y1 = dolfin.interpolate(y1, Y)
+        # for linear funcs the average is the value at the midpoints
+        xspan = xmax-xmin
+        yspan = ymax-ymin
+        mpxone, mpyone = xmin+.25*xspan, ymax-.25*yspan
+        mpxfour, mpyfour = xmin+.75*xspan, ymax-.75*yspan
+        vmpxone, vmpyone = exv((mpxone, mpyone))
+        vmpxfour, vmpyfour = exv((mpxfour, mpyfour))
 
-        y2 = dolfin.Function(Y)
-        y2.vector().set_local(testy[NY:])
-
-        self.assertTrue(dolfin.errornorm(y2, y1) < 1e-14)
+        self.assertTrue(np.allclose(vmpxone, testy[0]) and
+                        np.allclose(vmpyone, testy[NY]) and
+                        np.allclose(vmpxfour, testy[NY-1]) and
+                        np.allclose(vmpyfour, testy[-1]))
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestInoutOpas)
 unittest.TextTestRunner(verbosity=2).run(suite)

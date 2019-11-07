@@ -4,7 +4,6 @@ import scipy.sparse as sps
 import scipy.sparse.linalg as spsla
 
 import sadptprj_riclyap_adi.lin_alg_utils as lau
-import dolfin_navier_scipy.dolfin_to_sparrays as dts
 
 from dolfin import dx, inner
 
@@ -70,118 +69,96 @@ def get_inp_opa(cdcoo=None, NU=8, V=None, xcomp=0):
                         sps.vstack([sps.csc_matrix((NU, NU)), Mu])]))
 
 
-def get_mout_opa(odcoo=None, NY=8, V=None, NV=20):
+def get_mout_opa(odcoo=None, NY=None, V=None,
+                 msrfncs='pc', mfgrid=(1, 1)):
     """dolfin.assemble the 'MyC' matrix
 
     the find an array representation
     of the output operator
 
-    the considered output is y(s) = 1/C int_x[1] v(s,x[1]) dx[1]
-    it is computed by testing computing my_i = 1/C int y_i v d(x)
-    where y_i depends only on x[1] and y_i is zero outside the domain
-    of observation. 1/C is the width of the domain of observation
-    cf. doku
+    the considered output is
+
+    .. math::
+        y(t) = M_y^{-1} \\int_{\\Omega_o} \\Psi v(t) dx
+
+    where :math:`\\Psi` is the formal vector of measurement functions
+    that have support on the domain of observation :math:`\\Omega_0`
+
+    Arrangement of the `mfgrid(3,2)` vector array is matrix like
+
+    s11 s21
+    s12 s22
+    s13 s23   in physical space
+
+    and then output will be `[y(s11), y(s12), ..., y(s23)].T`
+
+
+    Parameters
+    ----------
+    msrfncs : string, optional
+        type of the measurement functions, defaults to `'pc'` -- piecewise
+        constant (which measures averages over subdomains)
+    mfgrid : tuple, optional
+        grid for the definition of the `pc` measurments functions
+    odcoo : dictonary
+        with keys `'xmin'`, `'xmax'`, `'ymin'`, `'ymax'` -- the coordinates
+        of the domain of observation
     """
 
-    odom = ContDomain(odcoo)
+    if NY is not None:
+        raise NotImplementedError('by now only piecewise constant defined ' +
+                                  ' via mfgrid')
+    NV = V.dim()
 
-    v = dolfin.TestFunction(V)
+    # define the subdomains == sensor locations
+    xpartitions = mfgrid[1]
+    xmin, xspan = odcoo['xmin'], odcoo['xmax']-odcoo['xmin']
+    xspspan = xspan / xpartitions
+
+    ypartitions = mfgrid[0]
+    ymax, yspan = odcoo['ymax'], odcoo['ymax']-odcoo['ymin']
+    yspspan = yspan / ypartitions
+
+    spcoolist = []  # list of subdomain coordinates
+    for nxp in range(xpartitions):
+        spxmin = xmin + nxp*xspspan
+        spxmax = xmin + (nxp+1)*xspspan
+        for nyp in range(ypartitions):
+            spymax = ymax - nyp*yspspan
+            spymin = ymax - (nyp+1)*yspspan
+            spcoo = dict(xmin=spxmin, xmax=spxmax,
+                         ymin=spymin, ymax=spymax)
+            spcoolist.append(spcoo)
+
+    # filter functions that filter x, y components
     voney = dolfin.Expression(('0', '1'), element=V.ufl_element())
     vonex = dolfin.Expression(('1', '0'), element=V.ufl_element())
     voney = dolfin.interpolate(voney, V)
     vonex = dolfin.interpolate(vonex, V)
 
-    # factor to compute the average via \bar u = 1/h \int_0^h u(x) dx
-    Ci = 1.0 / (odcoo['xmax'] - odcoo['xmin'])
-    nvbyfive = np.int(np.round(NV/5))
-
-    try:
-        omega_y = dolfin.RectangleMesh(odcoo['xmin'], odcoo['ymin'],
-                                       odcoo['xmax'], odcoo['ymax'],
-                                       nvbyfive, NY-1)
-    except TypeError:  # e.g. in newer dolfin versions
-        omega_y = dolfin.\
-            RectangleMesh(dolfin.Point(odcoo['xmin'], odcoo['ymin']),
-                          dolfin.Point(odcoo['xmax'], odcoo['ymax']),
-                          nvbyfive, NY-1)
-    y_y = dolfin.VectorFunctionSpace(omega_y, 'CG', 1)
-    # vone_yx = dolfin.interpolate(vonex, y_y)
-    # vone_yy = dolfin.interpolate(voney, y_y)
-
-    # charfun = CharactFun(odom)
-    # v = dolfin.TestFunction(V)
-    # checkf = dolfin.assemble(inner(v, charfun) * dx)
-    # dofs_on_subd = np.where(checkf.array() > 0)[0]
-
-    charfun = CharactFun(odom)
-    v = dolfin.TestFunction(V)
     u = dolfin.TrialFunction(V)
+    cellmarkers = dolfin.MeshFunction('size_t', V.mesh(),
+                                      V.mesh().topology().dim())
 
-    MP = dolfin.assemble(inner(v, u) * charfun * dx)
-    MPa = dolfin.as_backend_type(MP).sparray()
+    cxll, cyll = [], []
+    strtdx = 101
+    for spcoo in spcoolist:
+        strtdx += 1
+        spodom = ContDomain(spcoo)
+        spodom.mark(cellmarkers, strtdx)  # just 0 didnt work
+        dx = dolfin.Measure('dx', subdomain_data=cellmarkers)
+        cxl = dolfin.assemble(inner(vonex, u) * dx(strtdx)).get_local()
+        cxll.append(sps.csr_matrix(cxl.reshape((1, NV))))
+        cyl = dolfin.assemble(inner(voney, u) * dx(strtdx)).get_local()
+        cyll.append(sps.csr_matrix(cyl.reshape((1, NV))))
 
-    checkf = MPa.diagonal()
-    dofs_on_subd = np.where(checkf > 0)[0]
+    mycx = sps.vstack(cxll)
+    mycy = sps.vstack(cyll)
+    MyC = sps.vstack([mycx, mycy])
 
-    # set up the numbers of zero columns to be inserted
-    # between the nonzeros, i.e. the columns corresponding
-    # to the dofs of V outside the observation domain
-    # e.g. if there are 7 dofs and dofs_on_subd = [1,4,5], then
-    # we compute the numbers [1,2,0,1] to assemble C = [0,*,0,0,*,*,0]
-    indist_subddofs = dofs_on_subd[1:] - (dofs_on_subd[:-1]+1)
-    indist_subddofs = np.r_[indist_subddofs, V.dim() - dofs_on_subd[-1] - 1]
+    My = (xspspan*yspspan)*sps.eye(2*xpartitions*ypartitions)  # the volumes
 
-    YX = [sps.csc_matrix((NY, dofs_on_subd[0]))]
-    YY = [sps.csc_matrix((NY, dofs_on_subd[0]))]
-    kkk = 0
-    for curdof, curzeros in zip(dofs_on_subd, indist_subddofs):
-        kkk += 1
-        vcur = dolfin.Function(V)
-        vcur.vector()[:] = 0
-        vcur.vector()[curdof] = 1
-        vdof_y = dolfin.interpolate(vcur, y_y)
-
-        Yx, Yy = [], []
-        for nbf in range(NY):
-            ybf = L2abLinBas(nbf, NY, a=odcoo['ymin'], b=odcoo['ymax'])
-            yx = Cast1Dto2D(ybf, odom, vcomp=0, xcomp=1)
-            yy = Cast1Dto2D(ybf, odom, vcomp=1, xcomp=1)
-
-            yxf = Ci * inner(vdof_y, yx) * dx
-            yyf = Ci * inner(vdof_y, yy) * dx
-
-            Yx.append(dolfin.assemble(yxf))
-            Yy.append(dolfin.assemble(yyf))
-
-        Yx = np.array(Yx)
-        Yy = np.array(Yy)
-        Yx = Yx.reshape(NY, 1)
-        Yy = Yy.reshape(NY, 1)
-        # append the columns to z
-        YX.append(sps.csc_matrix(Yx))
-        YY.append(sps.csc_matrix(Yy))
-        if curzeros > 0:
-            YX.append(sps.csc_matrix((NY, curzeros)))
-            YY.append(sps.csc_matrix((NY, curzeros)))
-
-    # print 'number of subdofs: {0}'.format(dofs_on_subd.shape[0])
-    My = ybf.massmat()
-    YYX = sps.hstack(YX)
-    YYY = sps.hstack(YY)
-    MyC = sps.vstack([YYX, YYY], format='csc')
-
-    # basfun = dolfin.Function(V)
-    # basfun.vector()[dofs_on_subd] = 0.2
-    # basfun.vector()[0] = 1  # for scaling the others only
-    # dolfin.plot(basfun)
-
-    try:
-        return (MyC, sps.block_diag([My, My], format='csc'))
-    except AttributeError:  # e.g. in scipy <= 0.9
-        return (
-            MyC,
-            sps.hstack([sps.vstack([My, sps.csc_matrix((NY, NY))]),
-                        sps.vstack([sps.csc_matrix((NY, NY)), My])]))
+    return MyC, My
 
 
 def app_difffreeproj(v=None, J=None, M=None):
@@ -236,9 +213,11 @@ class ContDomain(dolfin.SubDomain):
         self.maxxy = [ddict['xmax'], ddict['ymax']]
 
     def inside(self, x, on_boundary):
-        return (dolfin.between(x[0], (self.minxy[0], self.maxxy[0]))
+        insi = (dolfin.between(x[0], (self.minxy[0], self.maxxy[0]))
                 and
                 dolfin.between(x[1], (self.minxy[1], self.maxxy[1])))
+        # print(x, insi)
+        return insi
 
 
 class L2abLinBas():
@@ -356,7 +335,7 @@ def get_ystarvec(ystar, odcoo, NY):
 
 
 def extract_output(strdict=None, tmesh=None, c_mat=None,
-                   ystarvec=None, load_data=None):
+                   invinds=None, ystarvec=None, load_data=None):
     """extract the output `y` by applying `C` to the data
 
     returns lists of lists to be plotted pickled in json files
@@ -382,19 +361,21 @@ def extract_output(strdict=None, tmesh=None, c_mat=None,
         of ystarvec values as yscomplist
 
     """
-    def _app_c(c_mat, v):
-        try:
-            return c_mat*v
-        except ValueError:
-            return np.dot(c_mat, v)
 
-    cur_v = load_data(strdict[tmesh[0]])
-    yn = _app_c(c_mat, cur_v)
+    if invinds is not None:
+        def rdtin(vvec):
+            return vvec[invinds]
+    else:
+        def rdtin(vvec):
+            return vvec
+
+    cur_v = rdtin(load_data(strdict[tmesh[0]]))
+    yn = c_mat.dot(cur_v)
     yscomplist = [yn.flatten().tolist()]
 
     for t in tmesh[1:]:
-        cur_v = load_data(strdict[t])
-        yn = _app_c(c_mat, cur_v)
+        cur_v = rdtin(load_data(strdict[t]))
+        yn = c_mat.dot(cur_v)
         yscomplist.append(yn.flatten().tolist())
 
     if ystarvec is None:
@@ -427,23 +408,25 @@ def CharactFun(subdom, degree=2):
 def get_pavrg_onsubd(odcoo=None, Q=None, ppin=None):
     """assemble matrix that returns the pressure average over a subdomain
 
+    TODO: deprecate this -- use get_mout_opa instead
     """
 
-    odom = ContDomain(odcoo)
+    prsodom = ContDomain(odcoo)
     q = dolfin.TrialFunction(Q)
-    p = dolfin.TestFunction(Q)
+    # p = dolfin.TestFunction(Q)
 
     # factor to compute the average via \bar u = 1/h \int_0^h u(x) dx
     Ci = 1.0 / ((odcoo['xmax'] - odcoo['xmin']) *
                 (odcoo['ymax'] - odcoo['ymin']))
 
-    charfun = CharactFun(odom)
+    cellmarkers = dolfin.MeshFunction('size_t', Q.mesh(),
+                                      Q.mesh().topology().dim())
 
-    # TODO: no need to have `p` and then sum up all rows
-    # TODO: integrate over subdomain rather than using `charfun`
-    cp = dolfin.assemble(Ci * p * q * charfun * dx)
-    CP = dts.mat_dolfin2sparse(cp)
-    ccp = sps.csc_matrix(CP.sum(axis=0))
+    prsdx = 303
+    prsodom.mark(cellmarkers, prsdx)  # just 0 didnt work
+    dx = dolfin.Measure('dx', subdomain_data=cellmarkers)
+    cp = dolfin.assemble(Ci*q*dx(prsdx)).get_local().reshape((1, Q.dim()))
+    ccp = sps.csc_matrix(cp)
 
     if ppin is None:
         return ccp  # np.atleast_2d(cp.array())
