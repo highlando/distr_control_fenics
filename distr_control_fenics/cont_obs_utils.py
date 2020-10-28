@@ -1,9 +1,7 @@
 import dolfin
 import numpy as np
 import scipy.sparse as sps
-import scipy.sparse.linalg as spsla
-
-import sadptprj_riclyap_adi.lin_alg_utils as lau
+# import scipy.sparse.linalg as spsla
 
 from dolfin import dx, inner
 
@@ -14,8 +12,6 @@ except AttributeError:
 
 __all__ = ['get_inp_opa',
            'get_mout_opa',
-           'app_difffreeproj',
-           'get_regularized_c',
            'Cast1Dto2D',
            'get_rightinv',
            'extract_output',
@@ -164,49 +160,6 @@ def get_mout_opa(odcoo=None, NY=None, V=None,
     My = (xspspan*yspspan)*sps.eye(2*xpartitions*ypartitions)  # the volumes
 
     return MyC, My
-
-
-def app_difffreeproj(v=None, J=None, M=None):
-    """apply the regularization (projection to divfree vels)
-
-    i.e. compute v = [I-M^-1*J.T*S^-1*J]v
-    """
-
-    vg = lau.app_schurc_inv(M, J, np.atleast_2d(J * v).T)
-
-    vg = spsla.spsolve(M, J.T * vg)
-
-    return v - vg
-
-
-def get_regularized_c(Ct=None, J=None, Mt=None):
-    """apply the regularization (projection to divfree vels)
-
-    i.e. compute rC = C*[I-M^-1*J.T*S^-1*J] as
-    rCT = [I - J.T*S.-T*J*M.-T]*C.T
-    """
-
-    raise UserWarning('deprecated - use more explicit approach to proj via ' +
-                      'sadpoints systems as implemented in linalg_utils')
-
-    Nv, NY = Mt.shape[0], Ct.shape[1]
-    try:
-        rCt = np.load('data/regCNY{0}vdim{1}.npy'.format(NY, Nv))
-    except IOError:
-        print('no data/regCNY{0}vdim{1}.npy'.format(NY, Nv))
-        MTlu = spsla.factorized(Mt)
-        auCt = np.zeros(Ct.shape)
-        # M.-T*C.T
-        for ccol in range(NY):
-            auCt[:, ccol] = MTlu(np.array(Ct[:, ccol].todense())[:, 0])
-        # J*M.-T*C.T
-        auCt = J * auCt
-        # S.-T*J*M.-T*C.T
-        auCt = lau.app_schurc_inv(MTlu, J, auCt)
-        rCt = Ct - J.T * auCt
-        np.save('data/regCNY{0}vdim{1}.npy'.format(NY, Nv), rCt)
-
-    return np.array(rCt)
 
 
 # Subdomains of Control and Observation
