@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
 import sadptprj_riclyap_adi.lin_alg_utils as lau
-import distr_control_fenics.cont_obs_utils as cou
+import distributed_control_fenics.cont_obs_utils as cou
 
 N = 40
 
@@ -98,7 +98,8 @@ def check_output_opa(NYx=1, NYy=1, femp=None):
     print('obsdom: [{0},{1}]x[{2},{3}]'.format(odcoo['xmin'], odcoo['xmax'],
                                                odcoo['ymin'], odcoo['ymax']))
 
-    plt.show(block=False)
+    plt.show()
+
 
 if __name__ == '__main__':
     check_output_opa(NYx=2, NYy=4)

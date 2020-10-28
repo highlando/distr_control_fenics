@@ -5,7 +5,7 @@ import scipy.sparse.linalg as spsla
 import matplotlib.pyplot as plt
 
 import dolfin_navier_scipy.dolfin_to_sparrays as dts
-import distr_control_fenics.cont_obs_utils as cou
+import distributed_control_fenics.cont_obs_utils as cou
 
 
 def check_input_opa(NU, femp=None):
@@ -76,6 +76,7 @@ def check_input_opa(NU, femp=None):
     # dolfin.interactive()
     # plt.show(block=False)
     plt.show()
+
 
 if __name__ == '__main__':
     check_input_opa(NU=3)
