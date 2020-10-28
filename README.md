@@ -1,7 +1,7 @@
 Distributed Control for FEniCS
 ---
 
-A module of helper functions that assemble (distributed) control and observation
+A module of helper functions that assembles (distributed) control and observation
 operators using FEniCS.
 
 Some theory can be found in our preprint
