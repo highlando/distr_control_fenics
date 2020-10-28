@@ -14,7 +14,7 @@ setuptools.setup(name='distributed-control-fenics',
                  url="https://github.com/highlando/distr_control_fenics",
                  author='Jan Heiland',
                  author_email='jnhlnd@gmail.com',
-                 packages=['sadptprj_riclyap_adi'],  # same as name
+                 packages=['distributed_control_fenics'],  # same as name
                  install_requires=['numpy', 'scipy'],  # extrnl pckgs
                  classifiers=[
                      "Programming Language :: Python :: 3",

@@ -1,6 +1,8 @@
 Distributed Control for FEniCS
 ---
 
+[![PyPI version](https://badge.fury.io/py/distributed-control-fenics.png)](https://badge.fury.io/py/distributed-control-fenics)
+
 A module of helper functions that assembles (distributed) control and observation
 operators using FEniCS.
 
