@@ -3,7 +3,7 @@ import dolfin
 import scipy.sparse.linalg as spsla
 import numpy as np
 
-import distr_control_fenics.cont_obs_utils as cou
+import distributed_control_fenics.cont_obs_utils as cou
 
 
 import warnings
