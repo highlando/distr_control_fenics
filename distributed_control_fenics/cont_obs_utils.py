@@ -16,7 +16,9 @@ __all__ = ['get_inp_opa',
            'get_rightinv',
            'extract_output',
            'CharactFun',
-           'get_pavrg_onsubd']
+           'get_pavrg_onsubd',
+           'const_cntrl_onsubd',
+           ]
 
 
 def get_inp_opa(cdcoo=None, NU=8, V=None, xcomp=0):
@@ -70,7 +72,7 @@ def get_inp_opa(cdcoo=None, NU=8, V=None, xcomp=0):
                         sps.vstack([sps.csc_matrix((NU, NU)), Mu])]))
 
 
-def get_mout_opa(odcoo=None, NY=None, V=None,
+def get_mout_opa(odcoo=None, NY=None, V=None, ret_cmat=True,
                  msrfncs='pc', mfgrid=(1, 1)):
     """dolfin.assemble the 'MyC' matrix
 
@@ -104,6 +106,8 @@ def get_mout_opa(odcoo=None, NY=None, V=None,
     odcoo : dictonary
         with keys `'xmin'`, `'xmax'`, `'ymin'`, `'ymax'` -- the coordinates
         of the domain of observation
+    ret_cmat: boolean, optional
+        whether to return the plain cmat (without the mass matrix)
     """
 
     if NY is not None:
@@ -159,7 +163,11 @@ def get_mout_opa(odcoo=None, NY=None, V=None,
 
     My = (xspspan*yspspan)*sps.eye(2*xpartitions*ypartitions)  # the volumes
 
-    return MyC, My
+    if ret_cmat:
+        Myinv = (1./(xspspan*yspspan))*sps.eye(2*xpartitions*ypartitions)
+        return Myinv @ MyC
+    else:
+        return MyC, My
 
 
 # Subdomains of Control and Observation
@@ -390,3 +398,26 @@ def get_pavrg_onsubd(odcoo=None, Q=None, ppin=None):
         return ccp  # np.atleast_2d(cp.array())
     else:
         raise UserWarning('Need to implement/specify the pinned pressure')
+
+
+def const_cntrl_onsubd(cdcoo=None, V=None):
+    """assemble matrix that returns the pressure average over a subdomain
+
+    TODO: deprecate this -- use get_mout_opa instead
+    """
+
+    cdom = ContDomain(cdcoo)
+    v = dolfin.TestFunction(V)
+    onefun = dolfin.Constant(1.0)
+
+    cellmarkers = dolfin.MeshFunction('size_t', V.mesh(),
+                                      V.mesh().topology().dim())
+
+    sbddx = 303
+    cdom.mark(cellmarkers, sbddx)  # just 0 didnt work
+    dx = dolfin.Measure('dx', subdomain_data=cellmarkers)
+    bonesbd = dolfin.assemble(v*onefun*dx(sbddx)).\
+        get_local().reshape((V.dim(), 1))
+    Bcol = sps.csc_matrix(bonesbd)
+
+    return Bcol
